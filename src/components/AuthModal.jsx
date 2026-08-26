@@ -11,12 +11,14 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
   if (!isOpen) return null;
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
+    const endpoint = isSignUp ? `${API_BASE}/api/auth/register` : `${API_BASE}/api/auth/login`;
     const payload = isSignUp ? { email, password, name } : { email, password };
 
     // Timeout controller (5s timeout fallback)

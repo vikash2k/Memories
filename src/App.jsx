@@ -36,29 +36,31 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
 
+  const API_BASE = import.meta.env.VITE_API_URL || '';
+
   // Check auth & fetch initial data
   const fetchData = () => {
-    fetch('/api/auth/me')
+    fetch(`${API_BASE}/api/auth/me`)
       .then(res => res.json())
       .then(data => { if (data.user) setUser(data.user); })
       .catch(err => console.error(err));
 
-    fetch('/api/memories')
+    fetch(`${API_BASE}/api/memories`)
       .then(res => res.json())
       .then(data => { if (data.memories) setMemories(data.memories); })
       .catch(err => console.error(err));
 
-    fetch('/api/notebooks')
+    fetch(`${API_BASE}/api/notebooks`)
       .then(res => res.json())
       .then(data => { if (data.notebooks) setNotebooks(data.notebooks); })
       .catch(err => console.error(err));
 
-    fetch('/api/tasks')
+    fetch(`${API_BASE}/api/tasks`)
       .then(res => res.json())
       .then(data => { if (data.tasks) setTasks(data.tasks); })
       .catch(err => console.error(err));
 
-    fetch('/api/calendar')
+    fetch(`${API_BASE}/api/calendar`)
       .then(res => res.json())
       .then(data => { if (data.events) setCalendarEvents(data.events); })
       .catch(err => console.error(err));
