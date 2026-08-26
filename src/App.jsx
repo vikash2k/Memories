@@ -13,10 +13,7 @@ import SettingsView from './components/SettingsView';
 import AuthModal from './components/AuthModal';
 
 export default function App() {
-  // Main view switcher: 'landing' vs 'app'
   const [viewMode, setViewMode] = useState('landing');
-  
-  // App internal view: 'home', 'notes', 'notebooks', 'tasks', 'calendar', 'templates', 'trash', 'settings'
   const [currentView, setCurrentView] = useState('home');
 
   // Data States
@@ -38,29 +35,47 @@ export default function App() {
 
   const API_BASE = import.meta.env.VITE_API_URL || '';
 
+  // Helper fetch with Auth header
+  const authFetch = (url, options = {}) => {
+    const token = localStorage.getItem('memories_token');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(options.headers || {})
+    };
+    return fetch(url, { ...options, headers });
+  };
+
   // Check auth & fetch initial data
   const fetchData = () => {
-    fetch(`${API_BASE}/api/auth/me`)
+    const savedToken = localStorage.getItem('memories_token');
+
+    authFetch(`${API_BASE}/api/auth/me`)
       .then(res => res.json())
-      .then(data => { if (data.user) setUser(data.user); })
+      .then(data => {
+        if (data.user) {
+          setUser(data.user);
+          if (savedToken) setViewMode('app');
+        }
+      })
       .catch(err => console.error(err));
 
-    fetch(`${API_BASE}/api/memories`)
+    authFetch(`${API_BASE}/api/memories`)
       .then(res => res.json())
       .then(data => { if (data.memories) setMemories(data.memories); })
       .catch(err => console.error(err));
 
-    fetch(`${API_BASE}/api/notebooks`)
+    authFetch(`${API_BASE}/api/notebooks`)
       .then(res => res.json())
       .then(data => { if (data.notebooks) setNotebooks(data.notebooks); })
       .catch(err => console.error(err));
 
-    fetch(`${API_BASE}/api/tasks`)
+    authFetch(`${API_BASE}/api/tasks`)
       .then(res => res.json())
       .then(data => { if (data.tasks) setTasks(data.tasks); })
       .catch(err => console.error(err));
 
-    fetch(`${API_BASE}/api/calendar`)
+    authFetch(`${API_BASE}/api/calendar`)
       .then(res => res.json())
       .then(data => { if (data.events) setCalendarEvents(data.events); })
       .catch(err => console.error(err));
@@ -70,9 +85,8 @@ export default function App() {
     fetchData();
   }, []);
 
-  // Require auth trigger
   const handleOpenAuthOrApp = () => {
-    if (user) {
+    if (user && localStorage.getItem('memories_token')) {
       setViewMode('app');
     } else {
       setIsAuthOpen(true);
@@ -83,6 +97,12 @@ export default function App() {
     localStorage.removeItem('memories_token');
     setUser(null);
     setViewMode('landing');
+  };
+
+  const handleAuthSuccess = (authUser) => {
+    setUser(authUser);
+    setViewMode('app');
+    fetchData();
   };
 
   // Keyboard shortcut Ctrl+K for search modal
@@ -100,9 +120,8 @@ export default function App() {
   // CRUD Handlers for Memories / Notes
   const handleSaveMemory = (payload) => {
     if (payload.id) {
-      fetch(`/api/memories/${payload.id}`, {
+      authFetch(`${API_BASE}/api/memories/${payload.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
         .then(res => res.json())
@@ -113,9 +132,8 @@ export default function App() {
           }
         });
     } else {
-      fetch('/api/memories', {
+      authFetch(`${API_BASE}/api/memories`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
         .then(res => res.json())
@@ -129,7 +147,7 @@ export default function App() {
   };
 
   const handleDeleteMemory = (id) => {
-    fetch(`/api/memories/${id}`, { method: 'DELETE' })
+    authFetch(`${API_BASE}/api/memories/${id}`, { method: 'DELETE' })
       .then(res => res.json())
       .then(() => {
         setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 1 } : m));
@@ -138,7 +156,7 @@ export default function App() {
   };
 
   const handleRestoreMemory = (id) => {
-    fetch(`/api/memories/${id}/restore`, { method: 'POST' })
+    authFetch(`${API_BASE}/api/memories/${id}/restore`, { method: 'POST' })
       .then(res => res.json())
       .then(() => {
         setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 0 } : m));
@@ -146,7 +164,7 @@ export default function App() {
   };
 
   const handlePermanentDelete = (id) => {
-    fetch(`/api/memories/${id}?permanent=true`, { method: 'DELETE' })
+    authFetch(`${API_BASE}/api/memories/${id}?permanent=true`, { method: 'DELETE' })
       .then(res => res.json())
       .then(() => {
         setMemories(prev => prev.filter(m => m.id !== id));
@@ -155,9 +173,8 @@ export default function App() {
 
   // Notebooks Handlers
   const handleCreateNotebook = (data) => {
-    fetch('/api/notebooks', {
+    authFetch(`${API_BASE}/api/notebooks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     })
       .then(res => res.json())
@@ -169,7 +186,7 @@ export default function App() {
   };
 
   const handleDeleteNotebook = (id) => {
-    fetch(`/api/notebooks/${id}`, { method: 'DELETE' })
+    authFetch(`${API_BASE}/api/notebooks/${id}`, { method: 'DELETE' })
       .then(() => {
         setNotebooks(prev => prev.filter(n => n.id !== id));
         if (selectedNotebook?.id === id) setSelectedNotebook(null);
@@ -178,9 +195,8 @@ export default function App() {
 
   // Tasks Handlers
   const handleAddTask = (title, due_date = null, priority = 'Medium') => {
-    fetch('/api/tasks', {
+    authFetch(`${API_BASE}/api/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, due_date, priority })
     })
       .then(res => res.json())
@@ -190,9 +206,8 @@ export default function App() {
   };
 
   const handleToggleTask = (id, is_completed) => {
-    fetch(`/api/tasks/${id}`, {
+    authFetch(`${API_BASE}/api/tasks/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_completed: is_completed ? 1 : 0 })
     })
       .then(res => res.json())
@@ -204,15 +219,14 @@ export default function App() {
   };
 
   const handleDeleteTask = (id) => {
-    fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+    authFetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' })
       .then(() => setTasks(prev => prev.filter(t => t.id !== id)));
   };
 
   // Calendar Handlers
   const handleAddEvent = (data) => {
-    fetch('/api/calendar', {
+    authFetch(`${API_BASE}/api/calendar`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     })
       .then(res => res.json())
@@ -222,7 +236,7 @@ export default function App() {
   };
 
   const handleDeleteEvent = (id) => {
-    fetch(`/api/calendar/${id}`, { method: 'DELETE' })
+    authFetch(`${API_BASE}/api/calendar/${id}`, { method: 'DELETE' })
       .then(() => setCalendarEvents(prev => prev.filter(e => e.id !== id)));
   };
 
@@ -248,10 +262,7 @@ export default function App() {
         <AuthModal 
           isOpen={isAuthOpen}
           onClose={() => setIsAuthOpen(false)}
-          onAuthSuccess={(authUser) => {
-            setUser(authUser);
-            setViewMode('app');
-          }}
+          onAuthSuccess={handleAuthSuccess}
         />
       </>
     );
@@ -259,7 +270,6 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-white">
-      {/* Navigation Sidebar */}
       <Sidebar 
         currentView={currentView}
         setCurrentView={(view) => {
@@ -283,7 +293,6 @@ export default function App() {
         onBackToLanding={() => setViewMode('landing')}
       />
 
-      {/* Main Workspace Area */}
       <main className="flex-1 overflow-y-auto min-h-screen">
         {currentView === 'home' && (
           <HomeDashboard 
@@ -368,7 +377,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Global Modals */}
       <SearchModal 
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}

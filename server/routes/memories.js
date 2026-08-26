@@ -1,9 +1,11 @@
 import express from 'express';
-import { Memory, Notebook } from '../db.js';
+import { Memory } from '../db.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
+router.use(authMiddleware);
 
-// Get all memories/notes
+// Get all memories/notes for current user
 router.get('/', async (req, res) => {
   try {
     const { notebook_id, search, is_pinned, is_trash, mood, tag } = req.query;
@@ -16,21 +18,10 @@ router.get('/', async (req, res) => {
       filter.is_trash = false;
     }
 
-    if (notebook_id) {
-      filter.notebook_id = notebook_id;
-    }
-
-    if (is_pinned !== undefined) {
-      filter.is_pinned = is_pinned === '1' || is_pinned === 'true';
-    }
-
-    if (mood) {
-      filter.mood = mood;
-    }
-
-    if (tag) {
-      filter.tags = { $regex: tag, $options: 'i' };
-    }
+    if (notebook_id) filter.notebook_id = notebook_id;
+    if (is_pinned !== undefined) filter.is_pinned = is_pinned === '1' || is_pinned === 'true';
+    if (mood) filter.mood = mood;
+    if (tag) filter.tags = { $regex: tag, $options: 'i' };
 
     if (search) {
       filter.$or = [
@@ -82,6 +73,7 @@ router.post('/', async (req, res) => {
     const { notebook_id, title, content_html, content_text, mood, is_pinned, location, audio_url, tags } = req.body;
 
     const newMemory = await Memory.create({
+      user_id: req.userId,
       notebook_id: notebook_id || null,
       title: title || 'Untitled Memory',
       content_html: content_html || '',
