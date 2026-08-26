@@ -1,16 +1,20 @@
-# React + Vite
+# Memories — Evernote-Style Full-Stack Web Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Memories is an intelligent note-taking, memory vault, task checklist, and calendar integration web application built with React, Vite, Tailwind CSS, Node.js Express REST API, and MongoDB.
 
-Currently, two official plugins are available:
+## 🚀 Features
+- **Evernote Home Dashboard**: Auto-saving Scratchpad, Quick Note poster, Recent Notes, Task Checklist, and Daily Calendar Agenda.
+- **Rich Text Note Editor**: WYSIWYG formatting, tags, mood badges, word counter, and **AI Assistant** (note summarizer, writing polisher, action item extractor).
+- **Notebook Stacks**: Color-coded categories with custom icons and note count badges.
+- **User Authentication**: Sign In / Sign Up modal, JWT tokens, and per-user data protection.
+- **Zero-Latency Optimistic UI**: Instant note saving and notebook creation.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Tech Stack
+- **Frontend**: React, Vite, Tailwind CSS, Lucide Icons, Canvas Confetti
+- **Backend**: Node.js, Express, Mongoose
+- **Database**: MongoDB Atlas / MongoMemoryServer
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 🌐 Deployment
+- **Frontend**: Vercel
+- **Backend**: Render.com
+- **Repository**: [https://github.com/vikash2k/Memories](https://github.com/vikash2k/Memories)
