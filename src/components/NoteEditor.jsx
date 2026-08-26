@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Pin, Trash2, Tag, Bold, Italic, List, ListOrdered, 
-  Heading1, Heading2, Code, Quote, CheckSquare, Search, Plus, Save, 
-  Download, Printer, Share2, CornerUpLeft, BookOpen, Smile, MapPin, Check
+  Heading1, Heading2, Code, Quote, Search, Plus, Save, 
+  Check, MapPin
 } from 'lucide-react';
 
 export default function NoteEditor({ 
@@ -25,6 +25,9 @@ export default function NoteEditor({
   const [tags, setTags] = useState('');
   const [isPinned, setIsPinned] = useState(false);
   const [location, setLocation] = useState('');
+
+  // UI Save indicator state
+  const [isSavedVisual, setIsSavedVisual] = useState(false);
 
   // AI Modal state
   const [isAiOpen, setIsAiOpen] = useState(false);
@@ -62,7 +65,7 @@ export default function NoteEditor({
       id: activeMemory?.id,
       title: title || 'Untitled Memory',
       content_html: contentHtml || `<p>${contentText}</p>`,
-      content_text: contentText || title,
+      content_text: contentText || title || 'Untitled Memory',
       notebook_id: notebookId || null,
       mood,
       tags,
@@ -71,6 +74,10 @@ export default function NoteEditor({
     };
 
     onSaveMemory(payload);
+
+    // Visual Feedback
+    setIsSavedVisual(true);
+    setTimeout(() => setIsSavedVisual(false), 2500);
   };
 
   // Helper formatting insert
@@ -147,7 +154,7 @@ export default function NoteEditor({
             </h2>
             <button 
               onClick={onNewNote}
-              className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors"
+              className="p-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs font-bold"
               title="New Memory"
             >
               <Plus className="w-4 h-4" />
@@ -168,33 +175,39 @@ export default function NoteEditor({
 
         {/* Memories List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {filteredMemories.map(mem => {
-            const isSelected = activeMemory?.id === mem.id;
-            return (
-              <div 
-                key={mem.id}
-                onClick={() => onSelectMemory(mem)}
-                className={`p-3 rounded-xl cursor-pointer transition-all ${
-                  isSelected 
-                    ? 'bg-emerald-500/15 border border-emerald-500/40 text-white shadow-md' 
-                    : 'hover:bg-slate-800/60 text-slate-300'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-emerald-400 font-medium">{mem.mood || '😊 Joy'}</span>
-                  {mem.is_pinned ? <Pin className="w-3 h-3 text-amber-400 fill-amber-400" /> : null}
+          {filteredMemories.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-xs">
+              No memories found. Click + to create a note.
+            </div>
+          ) : (
+            filteredMemories.map(mem => {
+              const isSelected = activeMemory?.id === mem.id;
+              return (
+                <div 
+                  key={mem.id}
+                  onClick={() => onSelectMemory(mem)}
+                  className={`p-3 rounded-xl cursor-pointer transition-all ${
+                    isSelected 
+                      ? 'bg-emerald-500/15 border border-emerald-500/40 text-white shadow-md' 
+                      : 'hover:bg-slate-800/60 text-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] text-emerald-400 font-medium">{mem.mood || '😊 Joy'}</span>
+                    {mem.is_pinned ? <Pin className="w-3 h-3 text-amber-400 fill-amber-400" /> : null}
+                  </div>
+                  <h3 className="text-xs font-bold truncate">{mem.title || 'Untitled Memory'}</h3>
+                  <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
+                    {mem.content_text || 'No additional text...'}
+                  </p>
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
+                    <span>{mem.created_at ? new Date(mem.created_at).toLocaleDateString() : 'Today'}</span>
+                    <span className="text-emerald-400 truncate max-w-[100px]">{mem.tags}</span>
+                  </div>
                 </div>
-                <h3 className="text-xs font-bold truncate">{mem.title || 'Untitled Memory'}</h3>
-                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
-                  {mem.content_text || 'No additional text...'}
-                </p>
-                <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
-                  <span>{new Date(mem.created_at).toLocaleDateString()}</span>
-                  <span className="text-emerald-400 truncate max-w-[100px]">{mem.tags}</span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -203,7 +216,6 @@ export default function NoteEditor({
         {/* Editor Top Bar */}
         <div className="px-6 py-3 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
-            {/* Notebook Selector */}
             <select 
               value={notebookId}
               onChange={(e) => setNotebookId(e.target.value)}
@@ -215,7 +227,6 @@ export default function NoteEditor({
               ))}
             </select>
 
-            {/* Mood Selector */}
             <select 
               value={mood}
               onChange={(e) => setMood(e.target.value)}
@@ -252,10 +263,21 @@ export default function NoteEditor({
 
             <button 
               onClick={handleSave}
-              className="px-4 py-1.5 emerald-gradient hover:opacity-90 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-md"
+              className={`px-4 py-1.5 text-white rounded-lg text-xs font-bold flex items-center space-x-1.5 shadow-md transition-all ${
+                isSavedVisual ? 'bg-emerald-500 text-slate-950' : 'emerald-gradient hover:opacity-90'
+              }`}
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Save</span>
+              {isSavedVisual ? (
+                <>
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                  <span>Saved ✓</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Save</span>
+                </>
+              )}
             </button>
 
             {activeMemory && (
@@ -270,7 +292,7 @@ export default function NoteEditor({
           </div>
         </div>
 
-        {/* Rich WYSIWYG Formatting Toolbar */}
+        {/* Rich Formatting Toolbar */}
         <div className="px-6 py-2 border-b border-slate-800/80 bg-slate-900/40 flex items-center space-x-1 overflow-x-auto text-slate-400 shrink-0">
           <button onClick={() => formatText('bold')} className="p-1.5 hover:bg-slate-800 rounded hover:text-white" title="Bold">
             <Bold className="w-4 h-4" />
@@ -305,7 +327,6 @@ export default function NoteEditor({
 
         {/* Main Note Canvas Editor Area */}
         <div className="flex-1 overflow-y-auto p-8 space-y-6 max-w-4xl mx-auto w-full">
-          {/* Note Title Input */}
           <input 
             type="text" 
             placeholder="Title of your memory..."
@@ -314,7 +335,6 @@ export default function NoteEditor({
             className="w-full bg-transparent text-3xl font-extrabold text-white placeholder:text-slate-600 focus:outline-none tracking-tight"
           />
 
-          {/* Tags & Metadata bar */}
           <div className="flex flex-wrap items-center gap-3 pt-1 pb-3 border-b border-slate-800/80">
             <div className="flex items-center space-x-1.5 bg-slate-900 border border-slate-800 px-3 py-1 rounded-lg text-xs text-slate-300">
               <Tag className="w-3.5 h-3.5 text-emerald-400" />
@@ -339,7 +359,6 @@ export default function NoteEditor({
             </div>
           </div>
 
-          {/* Note Content Textarea / Editable */}
           <textarea 
             placeholder="Start typing your note, memory, meeting transcript, or daily journal..."
             value={contentText}
@@ -361,7 +380,7 @@ export default function NoteEditor({
                 <Sparkles className="w-5 h-5 text-emerald-400" />
                 <h3 className="text-base font-bold text-white">Memories AI Assistant</h3>
               </div>
-              <button onClick={() => setIsAiOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => setIsAiOpen(false)} className="text-slate-400 hover:text-white font-bold">✕</button>
             </div>
 
             <p className="text-xs text-slate-400">

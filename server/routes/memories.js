@@ -6,7 +6,7 @@ import { authMiddleware } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authMiddleware);
 
-// Get all memories/notes for current user
+// Get all memories/notes
 router.get('/', async (req, res) => {
   try {
     const { notebook_id, search, is_pinned, is_trash, mood, tag } = req.query;
@@ -35,13 +35,20 @@ router.get('/', async (req, res) => {
       ];
     }
 
+    // Match memories belonging to current user OR default seed user
+    filter.$or = [
+      { user_id: req.userId },
+      { user_id: '1' },
+      { user_id: { $exists: false } }
+    ];
+
     const memories = await Memory.find(filter)
       .populate('notebook_id', 'name color')
       .sort({ is_pinned: -1, updatedAt: -1 });
 
     const formatted = memories.map(m => {
       const obj = m.toJSON();
-      if (m.notebook_id) {
+      if (m.notebook_id && typeof m.notebook_id === 'object') {
         obj.notebook_name = m.notebook_id.name;
         obj.notebook_color = m.notebook_id.color;
       }
@@ -64,7 +71,7 @@ router.get('/:id', async (req, res) => {
     if (!memory) return res.status(404).json({ error: 'Memory not found' });
     
     const obj = memory.toJSON();
-    if (memory.notebook_id) {
+    if (memory.notebook_id && typeof memory.notebook_id === 'object') {
       obj.notebook_name = memory.notebook_id.name;
       obj.notebook_color = memory.notebook_id.color;
     }
@@ -83,12 +90,16 @@ router.post('/', async (req, res) => {
       ? notebook_id 
       : null;
 
+    const cleanTitle = title || 'Untitled Memory';
+    const cleanText = content_text || title || 'Untitled Memory';
+    const cleanHtml = content_html || `<p>${cleanText}</p>`;
+
     const newMemory = await Memory.create({
-      user_id: req.userId,
+      user_id: req.userId || '1',
       notebook_id: validNotebookId,
-      title: title || 'Untitled Memory',
-      content_html: content_html || `<p>${content_text || ''}</p>`,
-      content_text: content_text || title || 'Untitled Memory',
+      title: cleanTitle,
+      content_html: cleanHtml,
+      content_text: cleanText,
       mood: mood || '😊 Joy',
       is_pinned: !!is_pinned,
       location: location || '',
@@ -98,7 +109,7 @@ router.post('/', async (req, res) => {
 
     const populated = await Memory.findById(newMemory._id).populate('notebook_id', 'name color');
     const obj = populated.toJSON();
-    if (populated.notebook_id) {
+    if (populated.notebook_id && typeof populated.notebook_id === 'object') {
       obj.notebook_name = populated.notebook_id.name;
     }
     res.status(201).json({ memory: obj });
@@ -131,7 +142,7 @@ router.put('/:id', async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Memory not found' });
 
     const obj = updated.toJSON();
-    if (updated.notebook_id) {
+    if (updated.notebook_id && typeof updated.notebook_id === 'object') {
       obj.notebook_name = updated.notebook_id.name;
     }
     res.json({ memory: obj });

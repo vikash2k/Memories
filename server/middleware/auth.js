@@ -9,14 +9,15 @@ export function authMiddleware(req, res, next) {
     const token = authHeader.substring(7);
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      req.userId = decoded.id;
-      return next();
+      if (decoded && decoded.id) {
+        req.userId = decoded.id;
+        return next();
+      }
     } catch (err) {
-      // Invalid token fallback to default user
+      // Non-JWT or local session token fallback
     }
   }
 
-  // Default demo user id if no token provided
   req.userId = '1';
   next();
 }

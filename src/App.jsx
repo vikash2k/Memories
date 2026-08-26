@@ -117,9 +117,26 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // CRUD Handlers for Memories / Notes
+  // Instant Optimistic CRUD Handlers for Memories / Notes
   const handleSaveMemory = (payload) => {
+    const tempId = payload.id || 'temp_' + Date.now();
+    const optimisticMem = {
+      id: tempId,
+      title: payload.title || 'Untitled Memory',
+      content_html: payload.content_html || `<p>${payload.content_text || ''}</p>`,
+      content_text: payload.content_text || payload.title || 'Untitled Memory',
+      notebook_id: payload.notebook_id || null,
+      mood: payload.mood || '😊 Joy',
+      tags: payload.tags || '',
+      is_pinned: payload.is_pinned || 0,
+      is_trash: 0,
+      created_at: new Date().toISOString()
+    };
+
     if (payload.id) {
+      setMemories(prev => prev.map(m => m.id === payload.id ? optimisticMem : m));
+      setActiveMemory(optimisticMem);
+
       authFetch(`${API_BASE}/api/memories/${payload.id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
@@ -130,8 +147,12 @@ export default function App() {
             setMemories(prev => prev.map(m => m.id === data.memory.id ? data.memory : m));
             setActiveMemory(data.memory);
           }
-        });
+        })
+        .catch(err => console.error(err));
     } else {
+      setMemories(prev => [optimisticMem, ...prev]);
+      setActiveMemory(optimisticMem);
+
       authFetch(`${API_BASE}/api/memories`, {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -139,40 +160,51 @@ export default function App() {
         .then(res => res.json())
         .then(data => {
           if (data.memory) {
-            setMemories(prev => [data.memory, ...prev]);
+            setMemories(prev => prev.map(m => m.id === tempId ? data.memory : m));
             setActiveMemory(data.memory);
           }
-        });
+        })
+        .catch(err => console.error(err));
     }
   };
 
   const handleDeleteMemory = (id) => {
+    setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 1 } : m));
+    setActiveMemory(null);
+
     authFetch(`${API_BASE}/api/memories/${id}`, { method: 'DELETE' })
-      .then(res => res.json())
-      .then(() => {
-        setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 1 } : m));
-        setActiveMemory(null);
-      });
+      .catch(err => console.error(err));
   };
 
   const handleRestoreMemory = (id) => {
+    setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 0 } : m));
+
     authFetch(`${API_BASE}/api/memories/${id}/restore`, { method: 'POST' })
-      .then(res => res.json())
-      .then(() => {
-        setMemories(prev => prev.map(m => m.id === id ? { ...m, is_trash: 0 } : m));
-      });
+      .catch(err => console.error(err));
   };
 
   const handlePermanentDelete = (id) => {
+    setMemories(prev => prev.filter(m => m.id !== id));
+
     authFetch(`${API_BASE}/api/memories/${id}?permanent=true`, { method: 'DELETE' })
-      .then(res => res.json())
-      .then(() => {
-        setMemories(prev => prev.filter(m => m.id !== id));
-      });
+      .catch(err => console.error(err));
   };
 
-  // Notebooks Handlers
+  // Instant Optimistic Notebooks Handlers
   const handleCreateNotebook = (data) => {
+    const tempId = 'temp_nb_' + Date.now();
+    const optimisticNb = {
+      id: tempId,
+      name: data.name,
+      description: data.description || '',
+      color: data.color || '#14A053',
+      icon: 'BookOpen',
+      is_favorite: false,
+      note_count: 0
+    };
+
+    setNotebooks(prev => [...prev, optimisticNb]);
+
     authFetch(`${API_BASE}/api/notebooks`, {
       method: 'POST',
       body: JSON.stringify(data)
@@ -180,64 +212,76 @@ export default function App() {
       .then(res => res.json())
       .then(resData => {
         if (resData.notebook) {
-          setNotebooks(prev => [...prev, resData.notebook]);
+          setNotebooks(prev => prev.map(n => n.id === tempId ? resData.notebook : n));
         }
-      });
+      })
+      .catch(err => console.error(err));
   };
 
   const handleDeleteNotebook = (id) => {
+    setNotebooks(prev => prev.filter(n => n.id !== id));
+    if (selectedNotebook?.id === id) setSelectedNotebook(null);
+
     authFetch(`${API_BASE}/api/notebooks/${id}`, { method: 'DELETE' })
-      .then(() => {
-        setNotebooks(prev => prev.filter(n => n.id !== id));
-        if (selectedNotebook?.id === id) setSelectedNotebook(null);
-      });
+      .catch(err => console.error(err));
   };
 
   // Tasks Handlers
   const handleAddTask = (title, due_date = null, priority = 'Medium') => {
+    const tempId = 'temp_task_' + Date.now();
+    const optimisticTask = { id: tempId, title, due_date, priority, is_completed: 0 };
+    setTasks(prev => [optimisticTask, ...prev]);
+
     authFetch(`${API_BASE}/api/tasks`, {
       method: 'POST',
       body: JSON.stringify({ title, due_date, priority })
     })
       .then(res => res.json())
       .then(data => {
-        if (data.task) setTasks(prev => [data.task, ...prev]);
-      });
+        if (data.task) setTasks(prev => prev.map(t => t.id === tempId ? data.task : t));
+      })
+      .catch(err => console.error(err));
   };
 
   const handleToggleTask = (id, is_completed) => {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, is_completed: is_completed ? 1 : 0 } : t));
+
     authFetch(`${API_BASE}/api/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify({ is_completed: is_completed ? 1 : 0 })
     })
-      .then(res => res.json())
-      .then(data => {
-        if (data.task) {
-          setTasks(prev => prev.map(t => t.id === id ? data.task : t));
-        }
-      });
+      .catch(err => console.error(err));
   };
 
   const handleDeleteTask = (id) => {
+    setTasks(prev => prev.filter(t => t.id !== id));
+
     authFetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' })
-      .then(() => setTasks(prev => prev.filter(t => t.id !== id)));
+      .catch(err => console.error(err));
   };
 
   // Calendar Handlers
   const handleAddEvent = (data) => {
+    const tempId = 'temp_ev_' + Date.now();
+    const optimisticEv = { id: tempId, ...data };
+    setCalendarEvents(prev => [...prev, optimisticEv]);
+
     authFetch(`${API_BASE}/api/calendar`, {
       method: 'POST',
       body: JSON.stringify(data)
     })
       .then(res => res.json())
       .then(resData => {
-        if (resData.event) setCalendarEvents(prev => [...prev, resData.event]);
-      });
+        if (resData.event) setCalendarEvents(prev => prev.map(e => e.id === tempId ? resData.event : e));
+      })
+      .catch(err => console.error(err));
   };
 
   const handleDeleteEvent = (id) => {
+    setCalendarEvents(prev => prev.filter(e => e.id !== id));
+
     authFetch(`${API_BASE}/api/calendar/${id}`, { method: 'DELETE' })
-      .then(() => setCalendarEvents(prev => prev.filter(e => e.id !== id)));
+      .catch(err => console.error(err));
   };
 
   const handleUseTemplate = (template) => {
