@@ -63,7 +63,7 @@ export default function NoteEditor({
       title: title || 'Untitled Memory',
       content_html: contentHtml || `<p>${contentText}</p>`,
       content_text: contentText || title,
-      notebook_id: notebookId ? parseInt(notebookId) : null,
+      notebook_id: notebookId || null,
       mood,
       tags,
       is_pinned: isPinned ? 1 : 0,

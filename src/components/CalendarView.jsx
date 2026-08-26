@@ -13,7 +13,7 @@ export default function CalendarView({ calendarEvents, onAddEvent, onDeleteEvent
   const handleCreate = (e) => {
     e.preventDefault();
     if (!title.trim() || !eventDate) return;
-    onAddEvent({ title, event_date: eventDate, start_time: startTime, category, location, memory_id: memoryId ? parseInt(memoryId) : null });
+    onAddEvent({ title, event_date: eventDate, start_time: startTime, category, location, memory_id: memoryId || null });
     setTitle('');
     setIsModalOpen(false);
   };
