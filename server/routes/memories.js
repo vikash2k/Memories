@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { Memory } from '../db.js';
 import { authMiddleware } from '../middleware/auth.js';
 
@@ -18,7 +19,10 @@ router.get('/', async (req, res) => {
       filter.is_trash = false;
     }
 
-    if (notebook_id) filter.notebook_id = notebook_id;
+    if (notebook_id && notebook_id !== '' && mongoose.Types.ObjectId.isValid(notebook_id)) {
+      filter.notebook_id = notebook_id;
+    }
+
     if (is_pinned !== undefined) filter.is_pinned = is_pinned === '1' || is_pinned === 'true';
     if (mood) filter.mood = mood;
     if (tag) filter.tags = { $regex: tag, $options: 'i' };
@@ -53,6 +57,9 @@ router.get('/', async (req, res) => {
 // Get Single Memory
 router.get('/:id', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid memory ID format' });
+    }
     const memory = await Memory.findById(req.params.id).populate('notebook_id', 'name color');
     if (!memory) return res.status(404).json({ error: 'Memory not found' });
     
@@ -72,12 +79,16 @@ router.post('/', async (req, res) => {
   try {
     const { notebook_id, title, content_html, content_text, mood, is_pinned, location, audio_url, tags } = req.body;
 
+    const validNotebookId = (notebook_id && notebook_id !== '' && mongoose.Types.ObjectId.isValid(notebook_id)) 
+      ? notebook_id 
+      : null;
+
     const newMemory = await Memory.create({
       user_id: req.userId,
-      notebook_id: notebook_id || null,
+      notebook_id: validNotebookId,
       title: title || 'Untitled Memory',
-      content_html: content_html || '',
-      content_text: content_text || '',
+      content_html: content_html || `<p>${content_text || ''}</p>`,
+      content_text: content_text || title || 'Untitled Memory',
       mood: mood || '😊 Joy',
       is_pinned: !!is_pinned,
       location: location || '',
@@ -92,6 +103,7 @@ router.post('/', async (req, res) => {
     }
     res.status(201).json({ memory: obj });
   } catch (err) {
+    console.error('Error creating memory:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -99,9 +111,20 @@ router.post('/', async (req, res) => {
 // Update Memory Note
 router.put('/:id', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid memory ID format' });
+    }
+
+    const updates = { ...req.body };
+    if (updates.notebook_id !== undefined) {
+      updates.notebook_id = (updates.notebook_id && updates.notebook_id !== '' && mongoose.Types.ObjectId.isValid(updates.notebook_id))
+        ? updates.notebook_id
+        : null;
+    }
+
     const updated = await Memory.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updates },
       { new: true }
     ).populate('notebook_id', 'name color');
 
@@ -113,6 +136,7 @@ router.put('/:id', async (req, res) => {
     }
     res.json({ memory: obj });
   } catch (err) {
+    console.error('Error updating memory:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -120,6 +144,9 @@ router.put('/:id', async (req, res) => {
 // Move to trash or Delete Permanently
 router.delete('/:id', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid memory ID format' });
+    }
     const { permanent } = req.query;
 
     if (permanent === 'true') {
@@ -137,6 +164,9 @@ router.delete('/:id', async (req, res) => {
 // Restore from Trash
 router.post('/:id/restore', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid memory ID format' });
+    }
     await Memory.findByIdAndUpdate(req.params.id, { is_trash: false });
     res.json({ success: true, message: 'Restored memory' });
   } catch (err) {

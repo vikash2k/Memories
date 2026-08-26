@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { Task } from '../db.js';
 
 const router = express.Router();
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
     if (priority) {
       filter.priority = priority;
     }
-    if (memory_id) {
+    if (memory_id && memory_id !== '' && mongoose.Types.ObjectId.isValid(memory_id)) {
       filter.memory_id = memory_id;
     }
 
@@ -43,8 +44,12 @@ router.post('/', async (req, res) => {
     const { memory_id, title, due_date, priority } = req.body;
     if (!title) return res.status(400).json({ error: 'Task title is required' });
 
+    const validMemoryId = (memory_id && memory_id !== '' && mongoose.Types.ObjectId.isValid(memory_id))
+      ? memory_id
+      : null;
+
     const newTask = await Task.create({
-      memory_id: memory_id || null,
+      memory_id: validMemoryId,
       title,
       due_date: due_date || null,
       priority: priority || 'Medium',
@@ -62,12 +67,22 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update Task / Toggle completion
+// Update Task
 router.put('/:id', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid task ID' });
+    }
+    const updates = { ...req.body };
+    if (updates.memory_id !== undefined) {
+      updates.memory_id = (updates.memory_id && updates.memory_id !== '' && mongoose.Types.ObjectId.isValid(updates.memory_id))
+        ? updates.memory_id
+        : null;
+    }
+
     const updated = await Task.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: updates },
       { new: true }
     ).populate('memory_id', 'title');
 
@@ -86,6 +101,9 @@ router.put('/:id', async (req, res) => {
 // Delete Task
 router.delete('/:id', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Invalid task ID' });
+    }
     await Task.findByIdAndDelete(req.params.id);
     res.json({ success: true, id: req.params.id });
   } catch (err) {
