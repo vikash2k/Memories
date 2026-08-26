@@ -10,6 +10,7 @@ import TemplatesModal from './components/TemplatesModal';
 import SearchModal from './components/SearchModal';
 import TrashView from './components/TrashView';
 import SettingsView from './components/SettingsView';
+import AuthModal from './components/AuthModal';
 
 export default function App() {
   // Main view switcher: 'landing' vs 'app'
@@ -30,11 +31,12 @@ export default function App() {
   const [activeMemory, setActiveMemory] = useState(null);
 
   // Search & Modal States
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
 
-  // Fetch initial data from Express backend
+  // Check auth & fetch initial data
   const fetchData = () => {
     fetch('/api/auth/me')
       .then(res => res.json())
@@ -66,6 +68,21 @@ export default function App() {
     fetchData();
   }, []);
 
+  // Require auth trigger
+  const handleOpenAuthOrApp = () => {
+    if (user) {
+      setViewMode('app');
+    } else {
+      setIsAuthOpen(true);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('memories_token');
+    setUser(null);
+    setViewMode('landing');
+  };
+
   // Keyboard shortcut Ctrl+K for search modal
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -81,7 +98,6 @@ export default function App() {
   // CRUD Handlers for Memories / Notes
   const handleSaveMemory = (payload) => {
     if (payload.id) {
-      // Update
       fetch(`/api/memories/${payload.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -95,7 +111,6 @@ export default function App() {
           }
         });
     } else {
-      // Create
       fetch('/api/memories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,7 +224,6 @@ export default function App() {
       .then(() => setCalendarEvents(prev => prev.filter(e => e.id !== id)));
   };
 
-  // Template instantiation
   const handleUseTemplate = (template) => {
     handleSaveMemory({
       title: template.title,
@@ -226,7 +240,19 @@ export default function App() {
 
   // If in Marketing Landing Page view mode
   if (viewMode === 'landing') {
-    return <LandingPage onLaunchApp={() => setViewMode('app')} />;
+    return (
+      <>
+        <LandingPage onLaunchApp={handleOpenAuthOrApp} />
+        <AuthModal 
+          isOpen={isAuthOpen}
+          onClose={() => setIsAuthOpen(false)}
+          onAuthSuccess={(authUser) => {
+            setUser(authUser);
+            setViewMode('app');
+          }}
+        />
+      </>
+    );
   }
 
   return (
@@ -251,6 +277,7 @@ export default function App() {
         onNewNotebook={() => setCurrentView('notebooks')}
         onOpenSearch={() => setIsSearchOpen(true)}
         user={user}
+        onLogout={handleLogout}
         onBackToLanding={() => setViewMode('landing')}
       />
 

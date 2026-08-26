@@ -172,13 +172,22 @@ export default function Sidebar({
             </div>
           </div>
 
-          <button 
-            onClick={() => setCurrentView('settings')}
-            title="Settings"
-            className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+          <div className="flex items-center space-x-1">
+            <button 
+              onClick={() => setCurrentView('settings')}
+              title="Settings"
+              className="text-slate-400 hover:text-white p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={onLogout}
+              title="Log Out"
+              className="text-slate-400 hover:text-rose-400 p-1.5 hover:bg-rose-500/10 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
